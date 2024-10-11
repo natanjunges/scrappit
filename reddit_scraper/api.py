@@ -26,6 +26,15 @@ class SubredditT(Enum):
     ALL = "all"
 
 
+class CommentsSort(Enum):
+    CONFIDENCE = "confidence"
+    TOP = "top"
+    NEW = "new"
+    CONTROVERSIAL = "controversial"
+    OLD = "old"
+    QA = "qa"
+
+
 @dataclass
 class RedditAPI:
     BASE_URL: ClassVar[str] = "https://reddit.com"
@@ -99,3 +108,6 @@ class RedditAPI:
             return self.listing(endpoint, before, after, t=t.value)
 
         return self.listing(endpoint, before, after)
+
+    def comments(self, article: str, sort: CommentsSort = CommentsSort.CONFIDENCE) -> Any:
+        return self.get(f"/comments/{article}", sort=sort.value)
