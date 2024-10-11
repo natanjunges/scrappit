@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from enum import Enum
 from http.cookiejar import DefaultCookiePolicy
 from time import sleep, time
 from typing import Any, ClassVar
@@ -8,8 +9,25 @@ from requests import Session, Timeout
 from requests.exceptions import RetryError
 
 
+class SubredditSort(Enum):
+    HOT = "hot"
+    NEW = "new"
+    TOP = "top"
+    CONTROVERSIAL = "controversial"
+    RISING = "rising"
+
+
+class SubredditT(Enum):
+    HOUR = "hour"
+    DAY = "day"
+    WEEK = "week"
+    MONTH = "month"
+    YEAR = "year"
+    ALL = "all"
+
+
 @dataclass
-class RedditRequester:
+class RedditAPI:
     BASE_URL: ClassVar[str] = "https://reddit.com"
     TIMEOUT: ClassVar[int] = 10
     MAX_TRIES: ClassVar[int] = 3
@@ -23,7 +41,9 @@ class RedditRequester:
         self.session.headers = {"User-Agent": self.user_agent.random}
         self.session.cookies.set_policy(DefaultCookiePolicy(allowed_domains=[]))
 
-    def get(self, endpoint: str, params: dict[str, str] | None = None) -> Any:
+    def get(self, endpoint: str, **params: str) -> Any:
+        params["raw_json"] = "1"
+
         for _ in range(self.MAX_TRIES):
             now = time()
 
@@ -35,7 +55,7 @@ class RedditRequester:
                 self.requests_remaining = 1
 
             try:
-                response = self.session.get(f"{self.BASE_URL}{endpoint}", params=params, timeout=self.TIMEOUT)
+                response = self.session.get(f"{self.BASE_URL}{endpoint}.json", params=params, timeout=self.TIMEOUT)
             except Timeout:
                 continue
 
@@ -54,3 +74,28 @@ class RedditRequester:
             return response.json()
 
         raise RetryError()
+
+    def listing(self, endpoint: str, before: str | None, after: str | None, **params: str) -> Any:
+        params["limit"] = "100"
+
+        if before:
+            params["before"] = before
+        elif after:
+            params["after"] = after
+
+        return self.get(endpoint, **params)
+
+    def r(
+        self,
+        subreddit: str,
+        sort: SubredditSort = SubredditSort.HOT,
+        t: SubredditT = SubredditT.DAY,
+        before: str | None = None,
+        after: str | None = None
+    ) -> Any:
+        endpoint = f"/r/{subreddit}/{sort.value}"
+
+        if sort in (SubredditSort.TOP, SubredditSort.CONTROVERSIAL):
+            return self.listing(endpoint, before, after, t=t.value)
+
+        return self.listing(endpoint, before, after)
