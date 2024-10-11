@@ -109,5 +109,10 @@ class RedditAPI:
 
         return self.listing(endpoint, before, after)
 
-    def comments(self, article: str, sort: CommentsSort = CommentsSort.CONFIDENCE) -> Any:
-        return self.get(f"/comments/{article}", sort=sort.value)
+    def comments(self, article: str, sort: CommentsSort = CommentsSort.CONFIDENCE, comment: str | None = None) -> Any:
+        endpoint = f"/comments/{article}"
+
+        if comment:
+            return self.get(endpoint, sort=sort.value, comment=comment)
+
+        return self.get(endpoint, sort=sort.value)
