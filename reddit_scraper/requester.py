@@ -23,7 +23,7 @@ class RedditRequester:
         self.session.headers = {"User-Agent": self.user_agent.random}
         self.session.cookies.set_policy(DefaultCookiePolicy(allowed_domains=[]))
 
-    def get(self, endpoint: str) -> Any:
+    def get(self, endpoint: str, params: dict[str, str] | None = None) -> Any:
         for _ in range(self.MAX_TRIES):
             now = time()
 
@@ -35,7 +35,7 @@ class RedditRequester:
                 self.requests_remaining = 1
 
             try:
-                response = self.session.get(f"{self.BASE_URL}{endpoint}", timeout=self.TIMEOUT)
+                response = self.session.get(f"{self.BASE_URL}{endpoint}", params=params, timeout=self.TIMEOUT)
             except Timeout:
                 continue
 
