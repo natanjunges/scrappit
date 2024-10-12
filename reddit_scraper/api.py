@@ -44,15 +44,6 @@ class SubredditT(Enum):
     ALL = "all"
 
 
-class CommentsSort(Enum):
-    CONFIDENCE = "confidence"
-    TOP = "top"
-    NEW = "new"
-    CONTROVERSIAL = "controversial"
-    OLD = "old"
-    QA = "qa"
-
-
 class UserWhere(Enum):
     OVERVIEW = "overview"
     SUBMITTED = "submitted"
@@ -73,6 +64,15 @@ class UserT(Enum):
     MONTH = "month"
     YEAR = "year"
     ALL = "all"
+
+
+class CommentsSort(Enum):
+    CONFIDENCE = "confidence"
+    TOP = "top"
+    NEW = "new"
+    CONTROVERSIAL = "controversial"
+    OLD = "old"
+    QA = "qa"
 
 
 @dataclass
@@ -134,6 +134,9 @@ class RedditAPI:
 
         return self.get(endpoint, **params)
 
+    def r_about(self, subreddit: str) -> JSON:
+        return self.get(f"/r/{subreddit}/about")
+
     def r(
         self,
         subreddit: str,
@@ -149,16 +152,8 @@ class RedditAPI:
 
         return self.listing(endpoint, before, after)
 
-    def r_about(self, subreddit: str) -> JSON:
-        return self.get(f"/r/{subreddit}/about")
-
-    def comments(self, article: str, sort: CommentsSort = CommentsSort.CONFIDENCE, comment: str | None = None) -> JSON:
-        endpoint = f"/comments/{article}"
-
-        if comment:
-            return self.get(endpoint, sort=sort.value, comment=comment)
-
-        return self.get(endpoint, sort=sort.value)
+    def user_about(self, username: str) -> JSON:
+        return self.get(f"/user/{username}/about")
 
     def user(
         self,
@@ -176,5 +171,14 @@ class RedditAPI:
 
         return self.listing(endpoint, before, after, sort=sort.value)
 
-    def user_about(self, username: str) -> JSON:
-        return self.get(f"/user/{username}/about")
+    def comments(self, article: str, sort: CommentsSort = CommentsSort.CONFIDENCE, comment: str | None = None) -> JSON:
+        endpoint = f"/comments/{article}"
+
+        if comment:
+            return self.get(endpoint, sort=sort.value, comment=comment)
+
+        return self.get(endpoint, sort=sort.value)
+
+    def api_morechildren(self, link_id: str, children: list[str], sort: CommentsSort = CommentsSort.CONFIDENCE) -> JSON:
+        endpoint = "/api/morechildren"
+        return self.get(endpoint, api_type="json", link_id=link_id, children=",".join(children), sort=sort.value)
