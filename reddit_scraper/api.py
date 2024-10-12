@@ -51,6 +51,28 @@ class CommentsSort(Enum):
     QA = "qa"
 
 
+class UserWhere(Enum):
+    OVERVIEW = "overview"
+    SUBMITTED = "submitted"
+    COMMENTS = "comments"
+
+
+class UserSort(Enum):
+    HOT = "hot"
+    NEW = "new"
+    TOP = "top"
+    CONTROVERSIAL = "controversial"
+
+
+class UserT(Enum):
+    HOUR = "hour"
+    DAY = "day"
+    WEEK = "week"
+    MONTH = "month"
+    YEAR = "year"
+    ALL = "all"
+
+
 @dataclass
 class RedditAPI:
     BASE_URL: ClassVar[str] = "https://reddit.com"
@@ -132,3 +154,19 @@ class RedditAPI:
             return self.get(endpoint, sort=sort.value, comment=comment)
 
         return self.get(endpoint, sort=sort.value)
+
+    def user(
+        self,
+        username: str,
+        where: UserWhere = UserWhere.OVERVIEW,
+        sort: UserSort = UserSort.NEW,
+        t: UserT = UserT.ALL,
+        before: str | None = None,
+        after: str | None = None
+    ) -> Any:
+        endpoint = f"/user/{username}/{where.value}"
+
+        if sort in (UserSort.TOP, UserSort.CONTROVERSIAL):
+            return self.listing(endpoint, before, after, sort=sort.value, t=t.value)
+
+        return self.listing(endpoint, before, after, sort=sort.value)
