@@ -18,11 +18,13 @@ from dataclasses import dataclass, field
 from enum import Enum
 from http.cookiejar import DefaultCookiePolicy
 from time import sleep, time
-from typing import Any, ClassVar
+from typing import ClassVar, TypeAlias
 
 from fake_useragent import UserAgent
 from requests import Session, Timeout
 from requests.exceptions import RetryError
+
+JSON: TypeAlias = dict[str, "JSON"] | list["JSON"] | str | int | float | bool | None
 
 
 class SubredditSort(Enum):
@@ -88,7 +90,7 @@ class RedditAPI:
         self.session.headers = {"User-Agent": self.user_agent.random}
         self.session.cookies.set_policy(DefaultCookiePolicy(allowed_domains=[]))
 
-    def get(self, endpoint: str, **params: str) -> Any:
+    def get(self, endpoint: str, **params: str) -> JSON:
         params["raw_json"] = "1"
 
         for _ in range(self.MAX_TRIES):
@@ -122,7 +124,7 @@ class RedditAPI:
 
         raise RetryError()
 
-    def listing(self, endpoint: str, before: str | None, after: str | None, **params: str) -> Any:
+    def listing(self, endpoint: str, before: str | None, after: str | None, **params: str) -> JSON:
         params["limit"] = "100"
 
         if before:
@@ -139,7 +141,7 @@ class RedditAPI:
         t: SubredditT = SubredditT.DAY,
         before: str | None = None,
         after: str | None = None
-    ) -> Any:
+    ) -> JSON:
         endpoint = f"/r/{subreddit}/{sort.value}"
 
         if sort in (SubredditSort.TOP, SubredditSort.CONTROVERSIAL):
@@ -147,10 +149,10 @@ class RedditAPI:
 
         return self.listing(endpoint, before, after)
 
-    def r_about(self, subreddit: str) -> Any:
+    def r_about(self, subreddit: str) -> JSON:
         return self.get(f"/r/{subreddit}/about")
 
-    def comments(self, article: str, sort: CommentsSort = CommentsSort.CONFIDENCE, comment: str | None = None) -> Any:
+    def comments(self, article: str, sort: CommentsSort = CommentsSort.CONFIDENCE, comment: str | None = None) -> JSON:
         endpoint = f"/comments/{article}"
 
         if comment:
@@ -166,7 +168,7 @@ class RedditAPI:
         t: UserT = UserT.ALL,
         before: str | None = None,
         after: str | None = None
-    ) -> Any:
+    ) -> JSON:
         endpoint = f"/user/{username}/{where.value}"
 
         if sort in (UserSort.TOP, UserSort.CONTROVERSIAL):
@@ -174,5 +176,5 @@ class RedditAPI:
 
         return self.listing(endpoint, before, after, sort=sort.value)
 
-    def user_about(self, username: str) -> Any:
+    def user_about(self, username: str) -> JSON:
         return self.get(f"/user/{username}/about")
