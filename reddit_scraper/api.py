@@ -147,6 +147,9 @@ class RedditAPI:
 
         return self.listing(endpoint, before, after)
 
+    def r_about(self, subreddit: str) -> Any:
+        return self.get(f"/r/{subreddit}/about")
+
     def comments(self, article: str, sort: CommentsSort = CommentsSort.CONFIDENCE, comment: str | None = None) -> Any:
         endpoint = f"/comments/{article}"
 
@@ -170,3 +173,6 @@ class RedditAPI:
             return self.listing(endpoint, before, after, sort=sort.value, t=t.value)
 
         return self.listing(endpoint, before, after, sort=sort.value)
+
+    def user_about(self, username: str) -> Any:
+        return self.get(f"/user/{username}/about")
