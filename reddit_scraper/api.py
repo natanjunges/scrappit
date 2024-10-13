@@ -180,5 +180,4 @@ class RedditAPI:
         return self.get(endpoint, sort=sort.value)
 
     def api_morechildren(self, link_id: str, children: list[str], sort: CommentsSort = CommentsSort.CONFIDENCE) -> JSON:
-        endpoint = "/api/morechildren"
-        return self.get(endpoint, api_type="json", link_id=link_id, children=",".join(children), sort=sort.value)
+        return self.get("/api/morechildren", api_type="json", link_id=link_id, children=",".join(children), sort=sort.value)
