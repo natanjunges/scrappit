@@ -1,4 +1,4 @@
-# Reddit Scraper
+# Scrappit
 # Copyright (C) 2024  Natan Junges <natanajunges@gmail.com>
 
 # This program is free software: you can redistribute it and/or modify
