@@ -124,7 +124,7 @@ class RedditAPI:
 
         raise RetryError()
 
-    def listing(self, endpoint: str, before: str | None, after: str | None, **params: str) -> JSON:
+    def listing(self, endpoint: str, before: str | None = None, after: str | None = None, **params: str) -> JSON:
         params["limit"] = "100"
 
         if before:
