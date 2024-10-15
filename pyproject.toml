@@ -8,7 +8,7 @@ version = "0.1.0"
 authors = [
     {name="Natan Junges", email="natanajunges@gmail.com"}
 ]
-description = ""
+description = "Simple Reddit Scraper"
 readme = "README.md"
 requires-python = ">=3.10"
 classifiers = [
