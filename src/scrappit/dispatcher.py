@@ -28,6 +28,7 @@ class RedditAPITask:
     method: str = field(compare=False)
     args: tuple = field(compare=False)
     params: dict[str, str] = field(default_factory=dict, compare=False)
+    task_id: int = field(default=0, init=False, repr=False)
 
 
 @dataclass
@@ -43,6 +44,7 @@ class RedditAPIDispatcher(Thread):
         super().__init__()
         self.api: RedditAPI = RedditAPI()
         self.task_queue: PriorityQueue[RedditAPITask] = PriorityQueue()
+        self.task_id: int = 0
         self.result_queue: Queue[RedditAPIResult] = Queue()
         self.running: Event = Event()
 
@@ -66,8 +68,11 @@ class RedditAPIDispatcher(Thread):
     def stop(self) -> None:
         self.running.clear()
 
-    def put_task(self, task: RedditAPITask) -> None:
+    def put_task(self, task: RedditAPITask) -> RedditAPITask:
+        task.task_id = self.task_id
+        self.task_id += 1
         self.task_queue.put(task)
+        return task
 
     def get_result(self) -> RedditAPIResult | None:
         try:
@@ -77,14 +82,14 @@ class RedditAPIDispatcher(Thread):
         except Empty:
             return None
 
-    def get(self, priority: int, endpoint: str, **params: str) -> None:
-        self.put_task(RedditAPITask(priority, "get", (endpoint,), params))
+    def get(self, priority: int, endpoint: str, **params: str) -> RedditAPITask:
+        return self.put_task(RedditAPITask(priority, "get", (endpoint,), params))
 
-    def listing(self, priority: int, endpoint: str, before: str | None = None, after: str | None = None, **params: str) -> None:
-        self.put_task(RedditAPITask(priority, "listing", (endpoint, before, after), params))
+    def listing(self, priority: int, endpoint: str, before: str | None = None, after: str | None = None, **params: str) -> RedditAPITask:
+        return self.put_task(RedditAPITask(priority, "listing", (endpoint, before, after), params))
 
-    def r_about(self, priority: int, subreddit: str) -> None:
-        self.put_task(RedditAPITask(priority, "r_about", (subreddit,)))
+    def r_about(self, priority: int, subreddit: str) -> RedditAPITask:
+        return self.put_task(RedditAPITask(priority, "r_about", (subreddit,)))
 
     def r(
         self,
@@ -94,11 +99,11 @@ class RedditAPIDispatcher(Thread):
         t: SubredditT = SubredditT.DAY,
         before: str | None = None,
         after: str | None = None
-    ) -> None:
-        self.put_task(RedditAPITask(priority, "r", (subreddit, sort, t, before, after)))
+    ) -> RedditAPITask:
+        return self.put_task(RedditAPITask(priority, "r", (subreddit, sort, t, before, after)))
 
-    def user_about(self, priority: int, username: str) -> None:
-        self.put_task(RedditAPITask(priority, "user_about", (username,)))
+    def user_about(self, priority: int, username: str) -> RedditAPITask:
+        return self.put_task(RedditAPITask(priority, "user_about", (username,)))
 
     def user(
         self,
@@ -109,11 +114,11 @@ class RedditAPIDispatcher(Thread):
         t: UserT = UserT.ALL,
         before: str | None = None,
         after: str | None = None
-    ) -> None:
-        self.put_task(RedditAPITask(priority, "user", (username, where, sort, t, before, after)))
+    ) -> RedditAPITask:
+        return self.put_task(RedditAPITask(priority, "user", (username, where, sort, t, before, after)))
 
-    def comments(self, priority: int, article: str, sort: CommentsSort = CommentsSort.CONFIDENCE, comment: str | None = None) -> None:
-        self.put_task(RedditAPITask(priority, "comments", (article, sort, comment)))
+    def comments(self, priority: int, article: str, sort: CommentsSort = CommentsSort.CONFIDENCE, comment: str | None = None) -> RedditAPITask:
+        return self.put_task(RedditAPITask(priority, "comments", (article, sort, comment)))
 
-    def api_morechildren(self, priority: int, link_id: str, children: list[str], sort: CommentsSort = CommentsSort.CONFIDENCE) -> None:
-        self.put_task(RedditAPITask(priority, "api_morechildren", (link_id, children, sort)))
+    def api_morechildren(self, priority: int, link_id: str, children: list[str], sort: CommentsSort = CommentsSort.CONFIDENCE) -> RedditAPITask:
+        return self.put_task(RedditAPITask(priority, "api_morechildren", (link_id, children, sort)))
