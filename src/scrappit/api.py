@@ -83,7 +83,7 @@ class RedditAPI:
 
     session: Session = field(default_factory=Session, init=False, repr=False)
     user_agent: UserAgent = field(default_factory=UserAgent, init=False, repr=False)
-    requests_remaining: int = field(default=1, init=False, repr=False)
+    requests_remaining: bool = field(default=True, init=False, repr=False)
     reset_time: float = field(default=0, init=False, repr=False)
 
     def __post_init__(self) -> None:
@@ -97,11 +97,11 @@ class RedditAPI:
             now = time()
 
             if now > self.reset_time:
-                self.requests_remaining = 1
+                self.requests_remaining = True
             elif not self.requests_remaining:
                 sleep(self.reset_time - now)
                 self.session.headers["User-Agent"] = self.user_agent.random
-                self.requests_remaining = 1
+                self.requests_remaining = True
 
             try:
                 response = self.session.get(f"{self.BASE_URL}{endpoint}.json", params=params, timeout=self.TIMEOUT)
@@ -112,7 +112,7 @@ class RedditAPI:
                 response.raise_for_status()
 
             now = time()
-            self.requests_remaining = int(float(response.headers["X-Ratelimit-Remaining"]))
+            self.requests_remaining = bool(float(response.headers["X-Ratelimit-Remaining"]))
             self.reset_time = now + int(response.headers["X-Ratelimit-Reset"])
 
             if response.status_code == 429:
