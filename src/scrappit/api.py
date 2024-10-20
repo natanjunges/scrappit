@@ -18,13 +18,13 @@ from dataclasses import dataclass, field
 from enum import Enum
 from http.cookiejar import DefaultCookiePolicy
 from time import sleep, time
-from typing import ClassVar, TypeAlias
+from typing import ClassVar
 
 from fake_useragent import UserAgent
 from requests import Session, Timeout
 from requests.exceptions import RetryError
 
-JSON: TypeAlias = dict[str, "JSON"] | list["JSON"] | str | int | float | bool | None
+from .common import JSON
 
 
 class SubredditSort(Enum):

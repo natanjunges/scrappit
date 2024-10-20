@@ -15,37 +15,29 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from dataclasses import dataclass, field
+from queue import Empty, PriorityQueue, Queue
 from threading import Event, Thread
 from time import sleep
-from queue import Empty, PriorityQueue, Queue
 
-from .api import JSON, SubredditSort, SubredditT, UserWhere, UserSort, UserT, CommentsSort, RedditAPI
+from .common import ScrappitTask, ScrappitResult
+from .api import SubredditSort, SubredditT, UserWhere, UserSort, UserT, CommentsSort, RedditAPI
 
 
 @dataclass
-class RedditAPITask:
-    priority: int
-    method: str = field(compare=False)
-    args: tuple = field(compare=False)
-    params: dict[str, str] = field(default_factory=dict, compare=False)
+class ScrappitDispatcherTask(ScrappitTask):
+    priority: int = 0
     task_id: int = field(default=0, init=False, repr=False)
 
 
-@dataclass
-class RedditAPIResult:
-    task: RedditAPITask
-    value: JSON | Exception
-
-
-class RedditAPIDispatcher(Thread):
+class ScrappitDispatcher(Thread):
     IDLE_SLEEP: float = 1 / 60
 
     def __init__(self) -> None:
         super().__init__()
         self.api: RedditAPI = RedditAPI()
-        self.task_queue: PriorityQueue[RedditAPITask] = PriorityQueue()
+        self.task_queue: PriorityQueue[ScrappitDispatcherTask] = PriorityQueue()
         self.task_id: int = 0
-        self.result_queue: Queue[RedditAPIResult] = Queue()
+        self.result_queue: Queue[ScrappitResult] = Queue()
         self.running: Event = Event()
 
     def run(self) -> None:
@@ -56,10 +48,10 @@ class RedditAPIDispatcher(Thread):
                 task = self.task_queue.get()
 
                 try:
-                    json = getattr(self.api, task.method)(*task.args, **task.params)
-                    self.result_queue.put(RedditAPIResult(task, json))
+                    json = getattr(self.api, task.task)(*task.args, **task.kwargs)
+                    self.result_queue.put(ScrappitResult(task, json))
                 except Exception as e:
-                    self.result_queue.put(RedditAPIResult(task, e))
+                    self.result_queue.put(ScrappitResult(task, e))
 
                 self.task_queue.task_done()
             else:
@@ -68,13 +60,13 @@ class RedditAPIDispatcher(Thread):
     def stop(self) -> None:
         self.running.clear()
 
-    def put_task(self, task: RedditAPITask) -> RedditAPITask:
+    def put_task(self, task: ScrappitDispatcherTask) -> ScrappitDispatcherTask:
         task.task_id = self.task_id
         self.task_id += 1
         self.task_queue.put(task)
         return task
 
-    def get_result(self) -> RedditAPIResult | None:
+    def get_result(self) -> ScrappitResult | None:
         try:
             result = self.result_queue.get_nowait()
             self.result_queue.task_done()
@@ -82,14 +74,14 @@ class RedditAPIDispatcher(Thread):
         except Empty:
             return None
 
-    def get(self, priority: int, endpoint: str, **params: str) -> RedditAPITask:
-        return self.put_task(RedditAPITask(priority, "get", (endpoint,), params))
+    def get(self, priority: int, endpoint: str, **params: str) -> ScrappitDispatcherTask:
+        return self.put_task(ScrappitDispatcherTask("get", (endpoint,), params, priority))
 
-    def listing(self, priority: int, endpoint: str, before: str | None = None, after: str | None = None, **params: str) -> RedditAPITask:
-        return self.put_task(RedditAPITask(priority, "listing", (endpoint, before, after), params))
+    def listing(self, priority: int, endpoint: str, before: str | None = None, after: str | None = None, **params: str) -> ScrappitDispatcherTask:
+        return self.put_task(ScrappitDispatcherTask("listing", (endpoint, before, after), params, priority))
 
-    def r_about(self, priority: int, subreddit: str) -> RedditAPITask:
-        return self.put_task(RedditAPITask(priority, "r_about", (subreddit,)))
+    def r_about(self, priority: int, subreddit: str) -> ScrappitDispatcherTask:
+        return self.put_task(ScrappitDispatcherTask("r_about", (subreddit,), priority=priority))
 
     def r(
         self,
@@ -99,11 +91,11 @@ class RedditAPIDispatcher(Thread):
         t: SubredditT = SubredditT.DAY,
         before: str | None = None,
         after: str | None = None
-    ) -> RedditAPITask:
-        return self.put_task(RedditAPITask(priority, "r", (subreddit, sort, t, before, after)))
+    ) -> ScrappitDispatcherTask:
+        return self.put_task(ScrappitDispatcherTask("r", (subreddit, sort, t, before, after), priority=priority))
 
-    def user_about(self, priority: int, username: str) -> RedditAPITask:
-        return self.put_task(RedditAPITask(priority, "user_about", (username,)))
+    def user_about(self, priority: int, username: str) -> ScrappitDispatcherTask:
+        return self.put_task(ScrappitDispatcherTask("user_about", (username,), priority=priority))
 
     def user(
         self,
@@ -114,11 +106,15 @@ class RedditAPIDispatcher(Thread):
         t: UserT = UserT.ALL,
         before: str | None = None,
         after: str | None = None
-    ) -> RedditAPITask:
-        return self.put_task(RedditAPITask(priority, "user", (username, where, sort, t, before, after)))
+    ) -> ScrappitDispatcherTask:
+        return self.put_task(ScrappitDispatcherTask("user", (username, where, sort, t, before, after), priority=priority))
 
-    def comments(self, priority: int, article: str, sort: CommentsSort = CommentsSort.CONFIDENCE, comment: str | None = None) -> RedditAPITask:
-        return self.put_task(RedditAPITask(priority, "comments", (article, sort, comment)))
+    def comments(
+        self, priority: int, article: str, sort: CommentsSort = CommentsSort.CONFIDENCE, comment: str | None = None
+    ) -> ScrappitDispatcherTask:
+        return self.put_task(ScrappitDispatcherTask("comments", (article, sort, comment), priority=priority))
 
-    def api_morechildren(self, priority: int, link_id: str, children: list[str], sort: CommentsSort = CommentsSort.CONFIDENCE) -> RedditAPITask:
-        return self.put_task(RedditAPITask(priority, "api_morechildren", (link_id, children, sort)))
+    def api_morechildren(
+        self, priority: int, link_id: str, children: list[str], sort: CommentsSort = CommentsSort.CONFIDENCE
+    ) -> ScrappitDispatcherTask:
+        return self.put_task(ScrappitDispatcherTask("api_morechildren", (link_id, children, sort), priority=priority))
