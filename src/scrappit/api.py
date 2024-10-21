@@ -27,52 +27,60 @@ from requests.exceptions import RetryError
 from .common import JSON
 
 
-class SubredditSort(Enum):
-    HOT = "hot"
-    NEW = "new"
-    TOP = "top"
-    CONTROVERSIAL = "controversial"
-    RISING = "rising"
+@dataclass
+class RedditAPIItem:
+    name: str
+    priority: float
 
 
-class SubredditT(Enum):
-    HOUR = "hour"
-    DAY = "day"
-    WEEK = "week"
-    MONTH = "month"
-    YEAR = "year"
-    ALL = "all"
+class RedditAPITask(Enum):
+    GET = RedditAPIItem("get", 0 / 8)
+    LISTING = RedditAPIItem("listing", 1 / 8)
+    R_ABOUT = RedditAPIItem("r_about", 6 / 8)
+    R = RedditAPIItem("r", 2 / 8)
+    USER_ABOUT = RedditAPIItem("user_about", 7 / 8)
+    USER = RedditAPIItem("user", 3 / 8)
+    COMMENTS = RedditAPIItem("comments", 4 / 8)
+    API_MORECHILDREN = RedditAPIItem("api_morechildren", 5 / 8)
 
 
-class UserWhere(Enum):
-    OVERVIEW = "overview"
-    SUBMITTED = "submitted"
-    COMMENTS = "comments"
+class RedditAPISubredditSort(Enum):
+    HOT = RedditAPIItem("hot", 2 / 5)
+    NEW = RedditAPIItem("new", 0 / 5)
+    TOP = RedditAPIItem("top", 4 / 5)
+    CONTROVERSIAL = RedditAPIItem("controversial", 3 / 5)
+    RISING = RedditAPIItem("rising", 1 / 5)
 
 
-class UserSort(Enum):
-    HOT = "hot"
-    NEW = "new"
-    TOP = "top"
-    CONTROVERSIAL = "controversial"
+class RedditAPIT(Enum):
+    HOUR = RedditAPIItem("hour", 0 / 6)
+    DAY = RedditAPIItem("day", 1 / 6)
+    WEEK = RedditAPIItem("week", 2 / 6)
+    MONTH = RedditAPIItem("month", 3 / 6)
+    YEAR = RedditAPIItem("year", 4 / 6)
+    ALL = RedditAPIItem("all", 5 / 6)
 
 
-class UserT(Enum):
-    HOUR = "hour"
-    DAY = "day"
-    WEEK = "week"
-    MONTH = "month"
-    YEAR = "year"
-    ALL = "all"
+class RedditAPIUserWhere(Enum):
+    OVERVIEW = RedditAPIItem("overview", 0 / 3)
+    SUBMITTED = RedditAPIItem("submitted", 2 / 3)
+    COMMENTS = RedditAPIItem("comments", 1 / 3)
 
 
-class CommentsSort(Enum):
-    CONFIDENCE = "confidence"
-    TOP = "top"
-    NEW = "new"
-    CONTROVERSIAL = "controversial"
-    OLD = "old"
-    QA = "qa"
+class RedditAPIUserSort(Enum):
+    HOT = RedditAPIItem("hot", 1 / 4)
+    NEW = RedditAPIItem("new", 0 / 4)
+    TOP = RedditAPIItem("top", 3 / 4)
+    CONTROVERSIAL = RedditAPIItem("controversial", 2 / 4)
+
+
+class RedditAPICommentsSort(Enum):
+    CONFIDENCE = RedditAPIItem("confidence", 1 / 6)
+    TOP = RedditAPIItem("top", 4 / 6)
+    NEW = RedditAPIItem("new", 0 / 6)
+    CONTROVERSIAL = RedditAPIItem("controversial", 3 / 6)
+    OLD = RedditAPIItem("old", 5 / 6)
+    QA = RedditAPIItem("qa", 2 / 6)
 
 
 @dataclass
@@ -140,15 +148,15 @@ class RedditAPI:
     def r(
         self,
         subreddit: str,
-        sort: SubredditSort = SubredditSort.HOT,
-        t: SubredditT = SubredditT.DAY,
+        sort: RedditAPISubredditSort = RedditAPISubredditSort.HOT,
+        t: RedditAPIT = RedditAPIT.DAY,
         before: str | None = None,
         after: str | None = None
     ) -> JSON:
-        endpoint = f"/r/{subreddit}/{sort.value}"
+        endpoint = f"/r/{subreddit}/{sort.value.name}"
 
-        if sort in (SubredditSort.TOP, SubredditSort.CONTROVERSIAL):
-            return self.listing(endpoint, before, after, t=t.value)
+        if sort in (RedditAPISubredditSort.TOP, RedditAPISubredditSort.CONTROVERSIAL):
+            return self.listing(endpoint, before, after, t=t.value.name)
 
         return self.listing(endpoint, before, after)
 
@@ -158,26 +166,26 @@ class RedditAPI:
     def user(
         self,
         username: str,
-        where: UserWhere = UserWhere.OVERVIEW,
-        sort: UserSort = UserSort.NEW,
-        t: UserT = UserT.ALL,
+        where: RedditAPIUserWhere = RedditAPIUserWhere.OVERVIEW,
+        sort: RedditAPIUserSort = RedditAPIUserSort.NEW,
+        t: RedditAPIT = RedditAPIT.ALL,
         before: str | None = None,
         after: str | None = None
     ) -> JSON:
-        endpoint = f"/user/{username}/{where.value}"
+        endpoint = f"/user/{username}/{where.value.name}"
 
-        if sort in (UserSort.TOP, UserSort.CONTROVERSIAL):
-            return self.listing(endpoint, before, after, sort=sort.value, t=t.value)
+        if sort in (RedditAPIUserSort.TOP, RedditAPIUserSort.CONTROVERSIAL):
+            return self.listing(endpoint, before, after, sort=sort.value.name, t=t.value.name)
 
-        return self.listing(endpoint, before, after, sort=sort.value)
+        return self.listing(endpoint, before, after, sort=sort.value.name)
 
-    def comments(self, article: str, sort: CommentsSort = CommentsSort.CONFIDENCE, comment: str | None = None) -> JSON:
+    def comments(self, article: str, sort: RedditAPICommentsSort = RedditAPICommentsSort.CONFIDENCE, comment: str | None = None) -> JSON:
         endpoint = f"/comments/{article}"
 
         if comment:
-            return self.get(endpoint, sort=sort.value, comment=comment)
+            return self.get(endpoint, sort=sort.value.name, comment=comment)
 
-        return self.get(endpoint, sort=sort.value)
+        return self.get(endpoint, sort=sort.value.name)
 
-    def api_morechildren(self, link_id: str, children: list[str], sort: CommentsSort = CommentsSort.CONFIDENCE) -> JSON:
-        return self.get("/api/morechildren", api_type="json", link_id=link_id, children=",".join(children), sort=sort.value)
+    def api_morechildren(self, link_id: str, children: list[str], sort: RedditAPICommentsSort = RedditAPICommentsSort.CONFIDENCE) -> JSON:
+        return self.get("/api/morechildren", api_type="json", link_id=link_id, children=",".join(children), sort=sort.value.name)
