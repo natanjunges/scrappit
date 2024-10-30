@@ -19,14 +19,23 @@ from queue import Empty, PriorityQueue, Queue
 from threading import Event, Thread
 from time import sleep
 
-from .common import ScrappitTask, ScrappitResult
+from .common import JSON
 from .api import RedditAPITask, RedditAPISubredditSort, RedditAPIT, RedditAPIUserWhere, RedditAPIUserSort, RedditAPICommentsSort, RedditAPI
 
 
 @dataclass
-class ScrappitSchedulerTask(ScrappitTask):
+class ScrappitTask:
+    name: str = field(compare=False)
+    args: tuple = field(compare=False)
+    kwargs: dict = field(default_factory=dict, compare=False)
     priority: float = 0
     task_id: int = field(default=0, init=False, repr=False)
+
+
+@dataclass
+class ScrappitResult:
+    task: ScrappitTask
+    value: JSON | Exception
 
 
 class ScrappitScheduler(Thread):
@@ -35,7 +44,7 @@ class ScrappitScheduler(Thread):
     def __init__(self) -> None:
         super().__init__()
         self.api: RedditAPI = RedditAPI()
-        self.task_queue: PriorityQueue[ScrappitSchedulerTask] = PriorityQueue()
+        self.task_queue: PriorityQueue[ScrappitTask] = PriorityQueue()
         self.task_id: int = 0
         self.result_queue: Queue[ScrappitResult] = Queue()
         self.running: Event = Event()
@@ -60,7 +69,7 @@ class ScrappitScheduler(Thread):
     def stop(self) -> None:
         self.running.clear()
 
-    def put_task(self, task: ScrappitSchedulerTask) -> ScrappitSchedulerTask:
+    def put_task(self, task: ScrappitTask) -> ScrappitTask:
         task.task_id = self.task_id
         self.task_id += 1
         self.task_queue.put(task)
@@ -74,25 +83,25 @@ class ScrappitScheduler(Thread):
         except Empty:
             return None
 
-    def get(self, endpoint: str, priority: float | None = None, **params: str) -> ScrappitSchedulerTask:
+    def get(self, endpoint: str, priority: float | None = None, **params: str) -> ScrappitTask:
         if priority is None:
             priority = RedditAPITask.GET.value.priority
 
-        return self.put_task(ScrappitSchedulerTask(RedditAPITask.GET.value.name, (endpoint,), params, priority))
+        return self.put_task(ScrappitTask(RedditAPITask.GET.value.name, (endpoint,), params, priority))
 
     def listing(
         self, endpoint: str, before: str | None = None, after: str | None = None, priority: float | None = None, **params: str
-    ) -> ScrappitSchedulerTask:
+    ) -> ScrappitTask:
         if priority is None:
             priority = RedditAPITask.LISTING.value.priority
 
-        return self.put_task(ScrappitSchedulerTask(RedditAPITask.LISTING.value.name, (endpoint, before, after), params, priority))
+        return self.put_task(ScrappitTask(RedditAPITask.LISTING.value.name, (endpoint, before, after), params, priority))
 
-    def r_about(self, subreddit: str, priority: float | None = None) -> ScrappitSchedulerTask:
+    def r_about(self, subreddit: str, priority: float | None = None) -> ScrappitTask:
         if priority is None:
             priority = RedditAPITask.R_ABOUT.value.priority
 
-        return self.put_task(ScrappitSchedulerTask(RedditAPITask.R_ABOUT.value.name, (subreddit,), priority=priority))
+        return self.put_task(ScrappitTask(RedditAPITask.R_ABOUT.value.name, (subreddit,), priority=priority))
 
     def r(
         self,
@@ -102,7 +111,7 @@ class ScrappitScheduler(Thread):
         before: str | None = None,
         after: str | None = None,
         priority: float | None = None
-    ) -> ScrappitSchedulerTask:
+    ) -> ScrappitTask:
         if priority is None:
             priority = RedditAPITask.R.value.priority + sort.value.priority
 
@@ -112,13 +121,13 @@ class ScrappitScheduler(Thread):
             else:
                 priority /= 2
 
-        return self.put_task(ScrappitSchedulerTask(RedditAPITask.R.value.name, (subreddit, sort, t, before, after), priority=priority))
+        return self.put_task(ScrappitTask(RedditAPITask.R.value.name, (subreddit, sort, t, before, after), priority=priority))
 
-    def user_about(self, username: str, priority: float | None = None) -> ScrappitSchedulerTask:
+    def user_about(self, username: str, priority: float | None = None) -> ScrappitTask:
         if priority is None:
             priority = RedditAPITask.USER_ABOUT.value.priority
 
-        return self.put_task(ScrappitSchedulerTask(RedditAPITask.USER_ABOUT.value.name, (username,), priority=priority))
+        return self.put_task(ScrappitTask(RedditAPITask.USER_ABOUT.value.name, (username,), priority=priority))
 
     def user(
         self,
@@ -129,7 +138,7 @@ class ScrappitScheduler(Thread):
         before: str | None = None,
         after: str | None = None,
         priority: float | None = None
-    ) -> ScrappitSchedulerTask:
+    ) -> ScrappitTask:
         if priority is None:
             priority = RedditAPITask.USER.value.priority + where.value.priority + sort.value.priority
 
@@ -139,22 +148,22 @@ class ScrappitScheduler(Thread):
             else:
                 priority /= 3
 
-        return self.put_task(ScrappitSchedulerTask(RedditAPITask.USER.value.name, (username, where, sort, t, before, after), priority=priority))
+        return self.put_task(ScrappitTask(RedditAPITask.USER.value.name, (username, where, sort, t, before, after), priority=priority))
 
     def comments(
         self, article: str, sort: RedditAPICommentsSort = RedditAPICommentsSort.CONFIDENCE, comment: str | None = None, priority: float | None = None
-    ) -> ScrappitSchedulerTask:
+    ) -> ScrappitTask:
         if priority is None:
             priority = RedditAPITask.COMMENTS.value.priority + sort.value.priority
             priority /= 2
 
-        return self.put_task(ScrappitSchedulerTask(RedditAPITask.COMMENTS.value.name, (article, sort, comment), priority=priority))
+        return self.put_task(ScrappitTask(RedditAPITask.COMMENTS.value.name, (article, sort, comment), priority=priority))
 
     def api_morechildren(
         self, link_id: str, children: list[str], sort: RedditAPICommentsSort = RedditAPICommentsSort.CONFIDENCE, priority: float | None = None
-    ) -> ScrappitSchedulerTask:
+    ) -> ScrappitTask:
         if priority is None:
             priority = RedditAPITask.API_MORECHILDREN.value.priority + sort.value.priority
             priority /= 2
 
-        return self.put_task(ScrappitSchedulerTask(RedditAPITask.API_MORECHILDREN.value.name, (link_id, children, sort), priority=priority))
+        return self.put_task(ScrappitTask(RedditAPITask.API_MORECHILDREN.value.name, (link_id, children, sort), priority=priority))

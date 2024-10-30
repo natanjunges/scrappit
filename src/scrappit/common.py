@@ -14,20 +14,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from dataclasses import dataclass, field
 from typing import TypeAlias
 
 JSON: TypeAlias = dict[str, "JSON"] | list["JSON"] | str | int | float | bool | None
-
-
-@dataclass
-class ScrappitTask:
-    name: str = field(compare=False)
-    args: tuple = field(compare=False)
-    kwargs: dict = field(default_factory=dict, compare=False)
-
-
-@dataclass
-class ScrappitResult:
-    task: ScrappitTask
-    value: JSON | Exception
