@@ -48,7 +48,7 @@ class ScrappitScheduler(Thread):
                 task = self.task_queue.get()
 
                 try:
-                    json = getattr(self.api, task.task)(*task.args, **task.kwargs)
+                    json = getattr(self.api, task.name)(*task.args, **task.kwargs)
                     self.result_queue.put(ScrappitResult(task, json))
                 except Exception as e:
                     self.result_queue.put(ScrappitResult(task, e))

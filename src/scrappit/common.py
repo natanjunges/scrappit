@@ -22,7 +22,7 @@ JSON: TypeAlias = dict[str, "JSON"] | list["JSON"] | str | int | float | bool | 
 
 @dataclass
 class ScrappitTask:
-    task: str = field(compare=False)
+    name: str = field(compare=False)
     args: tuple = field(compare=False)
     kwargs: dict = field(default_factory=dict, compare=False)
 
