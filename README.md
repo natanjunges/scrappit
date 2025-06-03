@@ -15,7 +15,7 @@ make <target>
 
 ### Available targets
 
-| Target | Description                      |
-|--------|----------------------------------|
-| all    | Builds the package.              |
-| upload | Uploads the package to pypi.org. |
+| Target   | Description                      |
+|----------|----------------------------------|
+| `all`    | Builds the package.              |
+| `upload` | Uploads the package to pypi.org. |
